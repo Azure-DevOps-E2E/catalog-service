@@ -9,6 +9,9 @@ Python + FastAPI service that owns product descriptions, prices and current stoc
 - `GET /api/v1/products/{id}`
 - `GET /docs` for the private OpenAPI UI
 
+`GET /health` returns `status`, `service` and the deployed `version`.
+Set `APP_VERSION` at runtime; it defaults to `1.0.0` for local runs.
+
 ## Run and test
 
 ```bash

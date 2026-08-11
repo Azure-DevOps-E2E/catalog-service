@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import SERVICE_VERSION, app
 
 
 client = TestClient(app)
@@ -43,4 +43,8 @@ def test_health() -> None:
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json()["status"] == "UP"
+    assert response.json() == {
+        "status": "UP",
+        "service": "catalog-service",
+        "version": SERVICE_VERSION,
+    }

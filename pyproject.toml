@@ -1,5 +1,5 @@
 [project]
-name = "polyglot-shop-catalog-service"
+name = "nexuscart-catalog-service"
 version = "1.0.0"
 requires-python = ">=3.13"
 

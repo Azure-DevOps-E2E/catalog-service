@@ -1,3 +1,4 @@
+import os
 import secrets
 from collections.abc import Awaitable, Callable
 
@@ -13,6 +14,7 @@ from app.models import Product, ProductList
 from app.repository import ProductRepository
 
 REQUEST_ID_HEADER = "X-Request-ID"
+SERVICE_VERSION = os.getenv("APP_VERSION", "").strip() or "1.0.0"
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
@@ -29,8 +31,8 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 
 
 app = FastAPI(
-    title="Polyglot Shop Catalog Service",
-    version="1.0.0",
+    title="NexusCart Catalog Service",
+    version=SERVICE_VERSION,
     docs_url="/docs",
     redoc_url=None,
 )
@@ -77,7 +79,11 @@ async def http_error_handler(
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "UP", "service": "catalog-service"}
+    return {
+        "status": "UP",
+        "service": "catalog-service",
+        "version": SERVICE_VERSION,
+    }
 
 
 @app.get("/api/v1/products", response_model=ProductList)
