@@ -10,18 +10,31 @@ pr:
 
 resources:
   repositories:
-    - repository: devops
+    - repository: pipelineTemplates
       type: github
       endpoint: github-azure-devops-e2e
       name: Azure-DevOps-E2E/devops
       ref: refs/heads/main
 
+variables:
+  - group: nexuscart-shared
+  - name: vmImage
+    value: ubuntu-latest
+  - name: serviceName
+    value: catalog-service
+  - name: imageRepository
+    value: catalog-service
+  - name: dockerfilePath
+    value: Dockerfile
+  - name: imageTag
+    value: $(Build.BuildId)
+  - name: fullImageName
+    value: $(acrLoginServer)/$(imageRepository):$(imageTag)
+
 extends:
-  template: pipelines/templates/service-pipeline.yml@devops
+  template: pipelines/templates/pipeline-contract.yml@pipelineTemplates
   parameters:
-    serviceName: catalog-service
-    imageRepository: catalog-service
-    dockerfilePath: Dockerfile
-    testCommand: |
-      python -m pip install -r requirements-dev.txt
-      pytest
+    pipelineStages:
+      - template: pipelines/stages/ci.yml@self
+      - template: pipelines/stages/deploy-dev.yml@self
+      - template: pipelines/stages/deploy-prod.yml@self
