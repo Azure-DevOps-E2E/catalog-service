@@ -104,7 +104,7 @@ stages:
       displayName: 'Login and Push to ACR'
       inputs:
         command: 'buildAndPush'
-        containerRegistry: 'YOUR_ACR_SERVICE_CONNECTION'
+        containerRegistry: 'devopse2e.azurecr.io'
         repository: '$(imageName)'
         dockerfile: '$(dockerfilePath)'
         tags: |
