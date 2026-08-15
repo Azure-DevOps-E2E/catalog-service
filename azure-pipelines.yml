@@ -27,16 +27,12 @@ stages:
     dockerfilePath: Dockerfile
     containerRegistry: acrLoginServer
     qualitySteps:
-    - task: UsePythonVersion@0
-      displayName: 'Use Python 3.13'
-      inputs:
-        versionSpec: '3.13'
-
-    - bash: |
-        set -euo pipefail
-        python -m pip install --upgrade pip
-        python -m pip install --requirement requirements-dev.txt
-        python -m ruff check .
-        python -m pytest
-        python -m compileall -q app tests
-      displayName: 'Lint, test, and build-check'
+    - template: pipelines/templates/steps/checkout.yml@configTemplates
+    - template: pipelines/templates/steps/python/setup.yml@configTemplates
+    - template: pipelines/templates/steps/python/install.yml@configTemplates
+    - template: pipelines/templates/steps/python/pytest.yml@configTemplates
+    - template: pipelines/templates/steps/python/verify.yml@configTemplates
+    - template: pipelines/templates/steps/reports.yml@configTemplates
+    - template: pipelines/templates/steps/qodana.yml@configTemplates
+      parameters:
+        linter: qodana-python-community

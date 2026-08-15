@@ -7,6 +7,8 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+coverage/
+reports/
 .idea/
 .vscode/
 .DS_Store

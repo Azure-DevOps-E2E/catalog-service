@@ -1,112 +1,31 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
-# trigger:
-# - main
-
-# pool:
-#   vmImage: ubuntu-latest
-  
-# steps:
-# - script: echo Hello, world!
-#   displayName: 'Run a one-line script'
-
-
 trigger:
 - main
 
-pool:
-  vmImage: 'ubuntu-latest'
+resources:
+  repositories:
+  - repository: configTemplates
+    type: github
+    endpoint: github.com_Azure-DevOps-E2E
+    name: Azure-DevOps-E2E/config-management
+    ref: refs/heads/main
 
-variables:
-  pythonVersion: '3.11'
-  imageName: 'catalog-service'
-  dockerfilePath: 'Dockerfile'
+pool:
+  vmImage: ubuntu-latest
 
 stages:
-
-# ==========================================
-# Stage 1: CI - Checkout & Dependency
-# ==========================================
-- stage: CI
-  displayName: 'CI - Checkout & Install Dependencies'
-  jobs:
-  - job: CI
-    displayName: 'Install Python Dependencies'
-
-    steps:
-
-    - checkout: self
-      displayName: 'Checkout source code'
-
-    - task: UsePythonVersion@0
-      displayName: 'Setup Python'
-      inputs:
-        versionSpec: '$(pythonVersion)'
-
-    - script: |
-        python --version
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-      displayName: 'Install Python dependencies'
-
-    - script: |
-        python -m compileall .
-      displayName: 'Validate Python code'
-
-
-# ==========================================
-# Stage 2: Build Docker Image
-# ==========================================
-- stage: Build
-  displayName: 'Build Docker Image'
-  dependsOn: CI
-  condition: succeeded()
-
-  jobs:
-  - job: DockerBuild
-    displayName: 'Build Docker Image'
-
-    steps:
-
-    - checkout: self
-      displayName: 'Checkout source code'
-
-    - script: |
-        docker build \
-          -f $(dockerfilePath) \
-          -t $(imageName):$(Build.BuildId) \
-          -t $(imageName):latest \
-          .
-      displayName: 'Build Docker image'
-
-
-# ==========================================
-# Stage 3: Push Docker Image to ACR
-# ==========================================
-- stage: Push
-  displayName: 'Push Image to Azure Container Registry'
-  dependsOn: Build
-  condition: succeeded()
-
-  jobs:
-  - job: DockerPush
-    displayName: 'Push Docker Image'
-
-    steps:
-
-    - checkout: self
-      displayName: 'Checkout source code'
-
-    - task: Docker@2
-      displayName: 'Login and Push to ACR'
-      inputs:
-        command: 'buildAndPush'
-        containerRegistry: 'acrLoginServer'
-        repository: '$(imageName)'
-        dockerfile: '$(dockerfilePath)'
-        tags: |
-          $(Build.BuildId)
-          latest
+- template: pipelines/templates/service-stages.yml@configTemplates
+  parameters:
+    serviceName: catalog-service
+    imageName: catalog-service
+    dockerfilePath: Dockerfile
+    containerRegistry: acrLoginServer
+    qualitySteps:
+    - template: pipelines/templates/steps/checkout.yml@configTemplates
+    - template: pipelines/templates/steps/python/setup.yml@configTemplates
+    - template: pipelines/templates/steps/python/install.yml@configTemplates
+    - template: pipelines/templates/steps/python/pytest.yml@configTemplates
+    - template: pipelines/templates/steps/python/verify.yml@configTemplates
+    - template: pipelines/templates/steps/reports.yml@configTemplates
+    - template: pipelines/templates/steps/qodana.yml@configTemplates
+      parameters:
+        linter: qodana-python-community
