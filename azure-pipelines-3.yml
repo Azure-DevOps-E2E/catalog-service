@@ -1,0 +1,25 @@
+trigger:
+- main
+
+resources:
+  repositories:
+  - repository: configTemplates
+    type: github
+    endpoint: github-azure-devops-e2e
+    name: Azure-DevOps-E2E/config-management
+    ref: refs/heads/main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  pythonVersion: '3.11'
+  imageName: 'catalog-service'
+  dockerfilePath: 'Dockerfile'
+
+stages:
+- template: pipelines/templates/catalog-service/ci-stage.yml@configTemplates
+- template: pipelines/templates/catalog-service/build-stage.yml@configTemplates
+- template: pipelines/templates/catalog-service/push-stage.yml@configTemplates
+  parameters:
+    containerRegistry: 'acrLoginServer'
