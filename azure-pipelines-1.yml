@@ -3,12 +3,110 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+# trigger:
+# - main
+
+# pool:
+#   vmImage: ubuntu-latest
+  
+# steps:
+# - script: echo Hello, world!
+#   displayName: 'Run a one-line script'
+
+
 trigger:
 - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+variables:
+  pythonVersion: '3.11'
+  imageName: 'catalog-service'
+  dockerfilePath: 'Dockerfile'
+
+stages:
+
+# ==========================================
+# Stage 1: CI - Checkout & Dependency
+# ==========================================
+- stage: CI
+  displayName: 'CI - Checkout & Install Dependencies'
+  jobs:
+  - job: CI
+    displayName: 'Install Python Dependencies'
+
+    steps:
+
+    - checkout: self
+      displayName: 'Checkout source code'
+
+    - task: UsePythonVersion@0
+      displayName: 'Setup Python'
+      inputs:
+        versionSpec: '$(pythonVersion)'
+
+    - script: |
+        python --version
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+      displayName: 'Install Python dependencies'
+
+    - script: |
+        python -m compileall .
+      displayName: 'Validate Python code'
+
+
+# ==========================================
+# Stage 2: Build Docker Image
+# ==========================================
+- stage: Build
+  displayName: 'Build Docker Image'
+  dependsOn: CI
+  condition: succeeded()
+
+  jobs:
+  - job: DockerBuild
+    displayName: 'Build Docker Image'
+
+    steps:
+
+    - checkout: self
+      displayName: 'Checkout source code'
+
+    - script: |
+        docker build \
+          -f $(dockerfilePath) \
+          -t $(imageName):$(Build.BuildId) \
+          -t $(imageName):latest \
+          .
+      displayName: 'Build Docker image'
+
+
+# ==========================================
+# Stage 3: Push Docker Image to ACR
+# ==========================================
+- stage: Push
+  displayName: 'Push Image to Azure Container Registry'
+  dependsOn: Build
+  condition: succeeded()
+
+  jobs:
+  - job: DockerPush
+    displayName: 'Push Docker Image'
+
+    steps:
+
+    - checkout: self
+      displayName: 'Checkout source code'
+
+    - task: Docker@2
+      displayName: 'Login and Push to ACR'
+      inputs:
+        command: 'buildAndPush'
+        containerRegistry: 'YOUR_ACR_SERVICE_CONNECTION'
+        repository: '$(imageName)'
+        dockerfile: '$(dockerfilePath)'
+        tags: |
+          $(Build.BuildId)
+          latest
