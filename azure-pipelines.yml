@@ -1,87 +1,42 @@
 trigger:
   branches:
     include:
-      - '*'
+    - '*'
 
 pr:
   branches:
     include:
-      - '*'
+    - '*'
 
-variables:
-  - group: nexuscart-shared
-  - name: vmImage
-    value: ubuntu-latest
-  - name: serviceName
-    value: catalog-service
-  - name: imageRepository
-    value: catalog-service
-  - name: dockerfilePath
-    value: Dockerfile
-  - name: imageTag
-    value: $(Build.BuildId)
-  - name: fullImageName
-    value: $(acrLoginServer)/$(imageRepository):$(imageTag)
+resources:
+  repositories:
+  - repository: configTemplates
+    type: github
+    endpoint: github.com_Azure-DevOps-E2E
+    name: Azure-DevOps-E2E/config-management
+    ref: refs/heads/main
 
 pool:
-  vmImage: $(vmImage)
+  vmImage: ubuntu-latest
 
-steps:
-  - checkout: self
-    clean: true
+stages:
+- template: pipelines/templates/service-stages.yml@configTemplates
+  parameters:
+    serviceName: catalog-service
+    imageName: catalog-service
+    dockerfilePath: Dockerfile
+    containerRegistry: acrLoginServer
+    qualitySteps:
+    - task: UsePythonVersion@0
+      displayName: 'Use Python 3.13'
+      inputs:
+        versionSpec: '3.13'
 
-  - task: UsePythonVersion@0
-    displayName: Use Python 3.13
-    inputs:
-      versionSpec: '3.13'
-
-  - bash: |
-      set -euo pipefail
-      python -m pip install --upgrade pip
-      python -m pip install --requirement requirements-dev.txt
-      python -m ruff check .
-      python -m pytest
-      python -m compileall -q app tests
-    displayName: Lint, test, and build-check
-
-  - bash: |
-      set -euo pipefail
-      docker build \
-        --file $(Build.SourcesDirectory)/$(dockerfilePath) \
-        --tag $(fullImageName) \
-        $(Build.SourcesDirectory)
-    displayName: Build Docker image
-
-  - bash: |
-      set -euo pipefail
-      mkdir -p $(Pipeline.Workspace)/.trivy-cache
-      docker run --rm \
-        --volume /var/run/docker.sock:/var/run/docker.sock \
-        --volume $(Pipeline.Workspace)/.trivy-cache:/root/.cache/ \
-        aquasec/trivy:0.72.0 \
-        image \
-        --exit-code 1 \
-        --ignore-unfixed \
-        --severity HIGH,CRITICAL \
-        $(fullImageName)
-    displayName: Scan Docker image with Trivy
-
-  - task: Docker@2
-    displayName: Login to ACR
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-    inputs:
-      command: login
-      containerRegistry: $(acrServiceConnection)
-
-  - bash: |
-      set -euo pipefail
-      docker push $(fullImageName)
-    displayName: Push Docker image to ACR
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-
-  - task: Docker@2
-    displayName: Logout from ACR
-    condition: and(always(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-    inputs:
-      command: logout
-      containerRegistry: $(acrServiceConnection)
+    - bash: |
+        set -euo pipefail
+        python -m pip install --upgrade pip
+        python -m pip install --requirement requirements-dev.txt
+        python -m ruff check .
+        python -m pytest
+        python -m compileall -q app tests
+      displayName: 'Lint, test, and build-check'

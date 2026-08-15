@@ -10,16 +10,26 @@ resources:
     ref: refs/heads/main
 
 pool:
-  vmImage: 'ubuntu-latest'
-
-variables:
-  pythonVersion: '3.11'
-  imageName: 'catalog-service'
-  dockerfilePath: 'Dockerfile'
+  vmImage: ubuntu-latest
 
 stages:
-- template: pipelines/templates/catalog-service/ci-stage.yml@configTemplates
-- template: pipelines/templates/catalog-service/build-stage.yml@configTemplates
-- template: pipelines/templates/catalog-service/push-stage.yml@configTemplates
+- template: pipelines/templates/service-stages.yml@configTemplates
   parameters:
-    containerRegistry: 'acrLoginServer'
+    serviceName: catalog-service
+    imageName: catalog-service
+    dockerfilePath: Dockerfile
+    containerRegistry: acrLoginServer
+    qualitySteps:
+    - task: UsePythonVersion@0
+      displayName: 'Use Python 3.13'
+      inputs:
+        versionSpec: '3.13'
+
+    - bash: |
+        set -euo pipefail
+        python -m pip install --upgrade pip
+        python -m pip install --requirement requirements-dev.txt
+        python -m ruff check .
+        python -m pytest
+        python -m compileall -q app tests
+      displayName: 'Lint, test, and build-check'
