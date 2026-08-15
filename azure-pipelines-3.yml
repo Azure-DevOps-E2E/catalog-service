@@ -5,7 +5,7 @@ resources:
   repositories:
   - repository: configTemplates
     type: github
-    endpoint: github-azure-devops-e2e
+    endpoint: github.com_Azure-DevOps-E2E
     name: Azure-DevOps-E2E/config-management
     ref: refs/heads/main
 
