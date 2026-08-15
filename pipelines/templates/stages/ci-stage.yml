@@ -1,0 +1,8 @@
+stages:
+- stage: CI
+  displayName: 'CI - Checkout & Install Dependencies'
+  jobs:
+  - job: CI
+    displayName: 'Install Python Dependencies'
+    steps:
+    - template: ../steps/ci-steps.yml

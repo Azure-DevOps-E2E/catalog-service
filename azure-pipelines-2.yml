@@ -1,0 +1,17 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  pythonVersion: '3.11'
+  imageName: 'catalog-service'
+  dockerfilePath: 'Dockerfile'
+
+stages:
+- template: pipelines/templates/stages/ci-stage.yml
+- template: pipelines/templates/stages/build-stage.yml
+- template: pipelines/templates/stages/push-stage.yml
+  parameters:
+    containerRegistry: 'acrLoginServer'

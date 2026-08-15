@@ -1,0 +1,10 @@
+stages:
+- stage: Build
+  displayName: 'Build Docker Image'
+  dependsOn: CI
+  condition: succeeded()
+  jobs:
+  - job: DockerBuild
+    displayName: 'Build Docker Image'
+    steps:
+    - template: ../steps/build-steps.yml

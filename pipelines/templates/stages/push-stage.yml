@@ -1,0 +1,16 @@
+parameters:
+- name: containerRegistry
+  type: string
+
+stages:
+- stage: Push
+  displayName: 'Push Image to Azure Container Registry'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: DockerPush
+    displayName: 'Push Docker Image'
+    steps:
+    - template: ../steps/push-steps.yml
+      parameters:
+        containerRegistry: ${{ parameters.containerRegistry }}
