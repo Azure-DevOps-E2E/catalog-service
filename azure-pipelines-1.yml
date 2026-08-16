@@ -1,31 +1,13 @@
-trigger:
-- main
-
-resources:
-  repositories:
-  - repository: configTemplates
-    type: github
-    endpoint: github.com_Azure-DevOps-E2E
-    name: Azure-DevOps-E2E/config-management
-    ref: refs/heads/main
-
-pool:
-  vmImage: ubuntu-latest
+# Retired legacy entry point.
+# The active service pipeline is /azure-pipelines.yml.
+trigger: none
+pr: none
 
 stages:
-- template: pipelines/templates/service-stages.yml@configTemplates
-  parameters:
-    serviceName: catalog-service
-    imageName: catalog-service
-    dockerfilePath: Dockerfile
-    containerRegistry: acrLoginServer
-    qualitySteps:
-    - template: pipelines/templates/steps/checkout.yml@configTemplates
-    - template: pipelines/templates/steps/python/setup.yml@configTemplates
-    - template: pipelines/templates/steps/python/install.yml@configTemplates
-    - template: pipelines/templates/steps/python/pytest.yml@configTemplates
-    - template: pipelines/templates/steps/python/verify.yml@configTemplates
-    - template: pipelines/templates/steps/reports.yml@configTemplates
-    - template: pipelines/templates/steps/qodana.yml@configTemplates
-      parameters:
-        linter: qodana-python-community
+- stage: Retired
+  displayName: 'Retired pipeline entry point'
+  jobs:
+  - job: Retired
+    displayName: 'Use /azure-pipelines.yml'
+    steps:
+    - checkout: none
