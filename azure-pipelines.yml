@@ -16,23 +16,137 @@ resources:
     name: Azure-DevOps-E2E/config-management
     ref: refs/heads/main
 
+variables:
+  serviceName: catalog-service
+  pythonVersion: '3.13'
+  requirementsFile: requirements-dev.txt
+  coverageSource: app
+  compileTargets: 'app tests'
+  testResultsFile: '$(System.DefaultWorkingDirectory)/reports/test-results.xml'
+  coverageSummaryFile: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml'
+  qodanaLinter: qodana-python-community
+  imageName: catalog-service
+  dockerfilePath: Dockerfile
+  buildContext: '$(Build.SourcesDirectory)'
+  containerRegistry: acrLoginServer
+  trivyVersion: '0.72.0'
+
 pool:
   vmImage: ubuntu-latest
 
 stages:
-- template: pipelines/templates/service-stages.yml@configTemplates
-  parameters:
-    serviceName: catalog-service
-    imageName: catalog-service
-    dockerfilePath: Dockerfile
-    containerRegistry: acrLoginServer
-    qualitySteps:
-    - template: pipelines/templates/steps/checkout.yml@configTemplates
-    - template: pipelines/templates/steps/python/setup.yml@configTemplates
+- stage: CI
+  displayName: 'CI - $(serviceName)'
+  jobs:
+  - job: Quality
+    displayName: 'Lint, test, and build $(serviceName)'
+    steps:
+    - checkout: self
+      clean: true
+      fetchDepth: 0
+      persistCredentials: true
+      displayName: 'Checkout source code'
+
+    - task: UsePythonVersion@0
+      displayName: 'Use Python $(pythonVersion)'
+      inputs:
+        versionSpec: '$(pythonVersion)'
+
     - template: pipelines/templates/steps/python/install.yml@configTemplates
-    - template: pipelines/templates/steps/python/pytest.yml@configTemplates
-    - template: pipelines/templates/steps/python/verify.yml@configTemplates
-    - template: pipelines/templates/steps/reports.yml@configTemplates
-    - template: pipelines/templates/steps/qodana.yml@configTemplates
       parameters:
-        linter: qodana-python-community
+        requirementsFile: '$(requirementsFile)'
+
+    - template: pipelines/templates/steps/python/pytest.yml@configTemplates
+      parameters:
+        coverageSource: '$(coverageSource)'
+        testResultsFile: '$(testResultsFile)'
+        coverageReportFile: '$(coverageSummaryFile)'
+
+    - template: pipelines/templates/steps/python/verify.yml@configTemplates
+      parameters:
+        compileTargets: '$(compileTargets)'
+
+    - task: PublishTestResults@2
+      displayName: 'Publish test report'
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: JUnit
+        testResultsFiles: '$(testResultsFile)'
+        searchFolder: '$(System.DefaultWorkingDirectory)'
+        mergeTestResults: true
+        failTaskOnFailedTests: true
+        failTaskOnFailureToPublishResults: true
+        failTaskOnMissingResultsFile: true
+        testRunTitle: '$(serviceName) tests'
+
+    - task: PublishCodeCoverageResults@2
+      displayName: 'Publish coverage report'
+      condition: succeededOrFailed()
+      inputs:
+        summaryFileLocation: '$(coverageSummaryFile)'
+        pathToSources: '$(Build.SourcesDirectory)'
+        failIfCoverageEmpty: true
+
+    - task: Cache@2
+      displayName: 'Restore Qodana cache'
+      condition: succeededOrFailed()
+      inputs:
+        key: '"qodana" | "$(Agent.OS)" | "$(Build.Repository.Name)" | "$(Build.SourceBranchName)"'
+        restoreKeys: |
+          "qodana" | "$(Agent.OS)" | "$(Build.Repository.Name)"
+          "qodana" | "$(Agent.OS)"
+        path: '$(Agent.TempDirectory)/qodana/cache'
+
+    - task: QodanaScan@2026
+      displayName: 'Run Qodana'
+      condition: succeededOrFailed()
+      inputs:
+        args: '--linter $(qodanaLinter)'
+        uploadResult: false
+        uploadSarif: false
+        prMode: false
+        postPrComment: false
+        pushFixes: none
+
+- stage: Container
+  displayName: 'Container - $(serviceName)'
+  dependsOn: CI
+  condition: succeeded()
+  jobs:
+  - job: Container
+    displayName: 'Build, scan, and push $(serviceName)'
+    steps:
+    - checkout: self
+      clean: true
+      fetchDepth: 1
+      persistCredentials: false
+      displayName: 'Checkout source code'
+
+    - task: Docker@2
+      displayName: 'Build Docker image'
+      inputs:
+        command: build
+        containerRegistry: '$(containerRegistry)'
+        repository: '$(imageName)'
+        dockerfile: '$(dockerfilePath)'
+        buildContext: '$(buildContext)'
+        tags: |
+          $(Build.BuildId)
+          latest
+        arguments: '--tag $(imageName):scan-$(Build.BuildId)'
+
+    - template: pipelines/templates/steps/container/scan.yml@configTemplates
+      parameters:
+        scanImage: '$(imageName):scan-$(Build.BuildId)'
+        trivyVersion: '$(trivyVersion)'
+
+    - task: Docker@2
+      displayName: 'Push Docker image to ACR'
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+      inputs:
+        command: push
+        containerRegistry: '$(containerRegistry)'
+        repository: '$(imageName)'
+        tags: |
+          $(Build.BuildId)
+          latest
