@@ -72,17 +72,17 @@ extends:
           inputs:
             versionSpec: '$(pythonVersion)'
 
-        - template: pipelines/templates/steps/python/install.yml@templates
+        - template: steps/python/install.yml@templates
           parameters:
             requirementsFile: '$(requirementsFile)'
 
-        - template: pipelines/templates/steps/python/pytest.yml@templates
+        - template: steps/python/pytest.yml@templates
           parameters:
             coverageSource: app
             testResultsFile: reports/test-results.xml
             coverageReportFile: coverage/cobertura-coverage.xml
 
-        - template: pipelines/templates/steps/python/verify.yml@templates
+        - template: steps/python/verify.yml@templates
           parameters:
             compileTargets: app tests
 
@@ -132,7 +132,7 @@ extends:
               $(candidateTag)
               dev
 
-        - template: pipelines/templates/steps/container/scan.yml@templates
+        - template: steps/container/scan.yml@templates
           parameters:
             scanImage: '$(acrLoginServer)/$(imageRepository):$(candidateTag)'
             trivyVersion: '$(trivyVersion)'
@@ -236,7 +236,7 @@ extends:
           persistCredentials: true
           displayName: 'Checkout full Git history'
 
-        - template: pipelines/templates/steps/container/resolve-candidate.yml@templates
+        - template: steps/container/resolve-candidate.yml@templates
 
     - stage: PromoteImage
       displayName: 'Promote image - $(serviceName)'
@@ -257,7 +257,7 @@ extends:
             command: login
             containerRegistry: '$(containerRegistryServiceConnection)'
 
-        - template: pipelines/templates/steps/container/promote.yml@templates
+        - template: steps/container/promote.yml@templates
           parameters:
             registry: '$(acrLoginServer)'
             repository: '$(imageRepository)'
