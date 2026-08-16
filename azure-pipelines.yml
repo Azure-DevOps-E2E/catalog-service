@@ -24,7 +24,6 @@ variables:
   compileTargets: 'app tests'
   testResultsFile: '$(System.DefaultWorkingDirectory)/reports/test-results.xml'
   coverageSummaryFile: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml'
-  qodanaLinter: qodana-python-community
   imageName: catalog-service
   dockerfilePath: Dockerfile
   buildContext: '$(Build.SourcesDirectory)'
@@ -87,26 +86,7 @@ stages:
         pathToSources: '$(Build.SourcesDirectory)'
         failIfCoverageEmpty: true
 
-    - task: Cache@2
-      displayName: 'Restore Qodana cache'
-      condition: succeededOrFailed()
-      inputs:
-        key: '"qodana" | "$(Agent.OS)" | "$(Build.Repository.Name)" | "$(Build.SourceBranchName)"'
-        restoreKeys: |
-          "qodana" | "$(Agent.OS)" | "$(Build.Repository.Name)"
-          "qodana" | "$(Agent.OS)"
-        path: '$(Agent.TempDirectory)/qodana/cache'
-
-    - task: QodanaScan@2026
-      displayName: 'Run Qodana'
-      condition: succeededOrFailed()
-      inputs:
-        args: '--linter $(qodanaLinter)'
-        uploadResult: false
-        uploadSarif: false
-        prMode: false
-        postPrComment: false
-        pushFixes: none
+    # Qodana is temporarily disabled until QodanaScan is installed.
 
 - stage: Container
   displayName: 'Container - $(serviceName)'
