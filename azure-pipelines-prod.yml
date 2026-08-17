@@ -49,23 +49,38 @@ extends:
           fetchDepth: 1
           displayName: 'Checkout source code'
 
-        - task: UsePythonVersion@0
-          displayName: 'Use Python $(pythonVersion)'
-          inputs:
-            versionSpec: '$(pythonVersion)'
+        # Host Python setup is kept commented for rollback. Quality now runs in Docker.
+        # - task: UsePythonVersion@0
+        #   displayName: 'Use Python $(pythonVersion)'
+        #   inputs:
+        #     versionSpec: '$(pythonVersion)'
+        #
+        # - template: steps/python/install.yml@templates
+        #   parameters:
+        #     requirementsFile: '$(requirementsFile)'
+        #
+        # - template: steps/python/pytest.yml@templates
+        #   parameters:
+        #     coverageSource: app
+        #     testResultsFile: reports/test-results.xml
+        #     coverageReportFile: coverage/cobertura-coverage.xml
+        #
+        # - template: steps/python/verify.yml@templates
+        #   parameters:
+        #     compileTargets: app tests
 
-        - template: steps/python/install.yml@templates
+        - template: steps/container/prepare-build-image.yml@templates
           parameters:
+            runtime: python
+            version: '$(pythonVersion)'
+
+        - template: steps/python/quality-container.yml@templates
+          parameters:
+            cacheKey: '$(serviceName)-python$(pythonVersion)'
             requirementsFile: '$(requirementsFile)'
-
-        - template: steps/python/pytest.yml@templates
-          parameters:
             coverageSource: app
             testResultsFile: reports/test-results.xml
             coverageReportFile: coverage/cobertura-coverage.xml
-
-        - template: steps/python/verify.yml@templates
-          parameters:
             compileTargets: app tests
 
         - task: PublishTestResults@2
@@ -80,6 +95,13 @@ extends:
             failTaskOnFailureToPublishResults: true
             failTaskOnMissingResultsFile: true
             testRunTitle: '$(serviceName) tests'
+
+        - task: UseDotNet@2
+          displayName: 'Use .NET SDK for coverage publisher'
+          condition: succeededOrFailed()
+          inputs:
+            packageType: sdk
+            version: '8.x'
 
         - task: PublishCodeCoverageResults@2
           displayName: 'Publish coverage report'
@@ -159,19 +181,16 @@ extends:
                 path: s/templates
                 displayName: 'Checkout writable config repository'
 
-              - task: PowerShell@2
+              - bash: |
+                  set -euo pipefail
+                  bash "$(Pipeline.Workspace)/s/templates/scripts/update-manifest.sh" \
+                    --service-name "$(serviceName)" \
+                    --environment prod \
+                    --registry "$(acrLoginServer)" \
+                    --image-tag "$(releaseTag)" \
+                    --repository-root "$(Pipeline.Workspace)/s/templates"
                 name: updateManifest
                 displayName: 'Update and push PROD manifest'
-                inputs:
-                  targetType: filePath
-                  filePath: '$(Pipeline.Workspace)/s/templates/scripts/update-manifest.ps1'
-                  arguments: >-
-                    -ServiceName "$(serviceName)"
-                    -Environment prod
-                    -Registry "$(acrLoginServer)"
-                    -ImageTag "$(releaseTag)"
-                    -RepositoryRoot "$(Pipeline.Workspace)/s/templates"
-                  pwsh: true
 
     - stage: Release
       displayName: 'GitHub release - $(serviceName)'
