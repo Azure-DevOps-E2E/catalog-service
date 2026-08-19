@@ -57,13 +57,13 @@ extends:
         - template: steps/security-scan.yml@templates
           parameters:
             runtime: python
-          condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
+            condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
 
         - template: steps/container/prepare-build-image.yml@templates
           parameters:
             runtime: python
             version: '$(pythonVersion)'
-          condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
+            condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
 
         - template: steps/python/quality-container.yml@templates
           parameters:
@@ -73,7 +73,7 @@ extends:
             testResultsFile: reports/test-results.xml
             coverageReportFile: coverage/cobertura-coverage.xml
             compileTargets: app tests
-          condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
+            condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
 
         - task: PublishTestResults@2
           displayName: 'Publish test report'
@@ -106,10 +106,10 @@ extends:
         - template: steps/qodana-scan.yml@templates
           parameters:
             linter: 'jetbrains/qodana-python'
-          condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
+            condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
 
         - template: steps/qodana-quality-gate.yml@templates
           parameters:
             failThreshold: 0
             failOnCritical: true
-          condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
+            condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
