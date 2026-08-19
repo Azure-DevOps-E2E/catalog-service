@@ -20,6 +20,7 @@ resources:
     ref: refs/heads/main
 
 variables:
+- group: catalog-service
 - name: serviceName
   value: 'catalog-service'
 - name: pythonVersion
@@ -46,33 +47,23 @@ extends:
         steps:
         - checkout: self
           clean: true
-          fetchDepth: 1
+          fetchDepth: 0
           displayName: 'Checkout source code'
 
-        # Host Python setup is kept commented for rollback. Quality now runs in Docker.
-        # - task: UsePythonVersion@0
-        #   displayName: 'Use Python $(pythonVersion)'
-        #   inputs:
-        #     versionSpec: '$(pythonVersion)'
-        #
-        # - template: steps/python/install.yml@templates
-        #   parameters:
-        #     requirementsFile: '$(requirementsFile)'
-        #
-        # - template: steps/python/pytest.yml@templates
-        #   parameters:
-        #     coverageSource: app
-        #     testResultsFile: reports/test-results.xml
-        #     coverageReportFile: coverage/cobertura-coverage.xml
-        #
-        # - template: steps/python/verify.yml@templates
-        #   parameters:
-        #     compileTargets: app tests
+        - template: steps/detect-changes.yml@templates
+          parameters:
+            targetBranch: 'main'
+
+        - template: steps/security-scan.yml@templates
+          parameters:
+            runtime: python
+          condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
 
         - template: steps/container/prepare-build-image.yml@templates
           parameters:
             runtime: python
             version: '$(pythonVersion)'
+          condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
 
         - template: steps/python/quality-container.yml@templates
           parameters:
@@ -82,10 +73,11 @@ extends:
             testResultsFile: reports/test-results.xml
             coverageReportFile: coverage/cobertura-coverage.xml
             compileTargets: app tests
+          condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
 
         - task: PublishTestResults@2
           displayName: 'Publish test report'
-          condition: succeededOrFailed()
+          condition: and(succeededOrFailed(), eq(variables['detect.skipHeavyCI'], 'false'))
           inputs:
             testResultsFormat: JUnit
             testResultsFiles: '$(testResultsFile)'
@@ -98,15 +90,26 @@ extends:
 
         - task: UseDotNet@2
           displayName: 'Use .NET SDK for coverage publisher'
-          condition: succeededOrFailed()
+          condition: and(succeededOrFailed(), eq(variables['detect.skipHeavyCI'], 'false'))
           inputs:
             packageType: sdk
             version: '8.x'
 
         - task: PublishCodeCoverageResults@2
           displayName: 'Publish coverage report'
-          condition: succeededOrFailed()
+          condition: and(succeededOrFailed(), eq(variables['detect.skipHeavyCI'], 'false'))
           inputs:
             summaryFileLocation: '$(coverageSummaryFile)'
             pathToSources: '$(Build.SourcesDirectory)'
             failIfCoverageEmpty: true
+
+        - template: steps/qodana-scan.yml@templates
+          parameters:
+            linter: 'jetbrains/qodana-python'
+          condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
+
+        - template: steps/qodana-quality-gate.yml@templates
+          parameters:
+            failThreshold: 0
+            failOnCritical: true
+          condition: and(succeeded(), eq(variables['detect.skipHeavyCI'], 'false'))
