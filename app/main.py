@@ -6,7 +6,6 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from app.errors import ApiError, error_payload
@@ -15,20 +14,7 @@ from app.repository import ProductRepository
 
 REQUEST_ID_HEADER = "X-Request-ID"
 SERVICE_VERSION = os.getenv("APP_VERSION", "").strip() or "1.0.0"
-
-
-class RequestIdMiddleware(BaseHTTPMiddleware):
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
-        request_id = request.headers.get(REQUEST_ID_HEADER) or secrets.token_hex(8)
-        request.state.request_id = request_id
-        response = await call_next(request)
-        response.headers[REQUEST_ID_HEADER] = request_id
-        return response
-
+SERVICE_IMAGE_TAG = os.getenv("APP_IMAGE_TAG", "").strip() or SERVICE_VERSION
 
 app = FastAPI(
     title="NexusCart Catalog Service",
@@ -36,7 +22,18 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url=None,
 )
-app.add_middleware(RequestIdMiddleware)
+
+
+@app.middleware("http")
+async def request_id_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    request_id_value = request.headers.get(REQUEST_ID_HEADER) or secrets.token_hex(8)
+    request.state.request_id = request_id_value
+    response = await call_next(request)
+    response.headers[REQUEST_ID_HEADER] = request_id_value
+    return response
+
 
 repository = ProductRepository()
 
@@ -55,7 +52,7 @@ async def api_error_handler(request: Request, error: ApiError) -> JSONResponse:
 
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(
-    request: Request, error: RequestValidationError
+    request: Request, _error: RequestValidationError
 ) -> JSONResponse:
     return JSONResponse(
         status_code=422,
@@ -83,6 +80,7 @@ async def health() -> dict[str, str]:
         "status": "UP",
         "service": "catalog-service",
         "version": SERVICE_VERSION,
+        "imageTag": SERVICE_IMAGE_TAG,
     }
 
 
