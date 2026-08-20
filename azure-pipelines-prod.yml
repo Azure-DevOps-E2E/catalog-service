@@ -186,7 +186,7 @@ extends:
           parameters:
             registry: '$(acrLoginServer)'
             repository: '$(imageRepository)'
-            candidateTag: 'candidate-$(candidateSourceVersion)'
+            candidateTag: '$(candidateSourceVersion)'
             releaseTag: '$(releaseTag)'
 
         - task: Docker@2
