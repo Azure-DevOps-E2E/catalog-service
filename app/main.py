@@ -15,6 +15,7 @@ from app.repository import ProductRepository
 
 REQUEST_ID_HEADER = "X-Request-ID"
 SERVICE_VERSION = os.getenv("APP_VERSION", "").strip() or "1.0.0"
+SERVICE_IMAGE_TAG = os.getenv("APP_IMAGE_TAG", "").strip() or SERVICE_VERSION
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
@@ -83,6 +84,7 @@ async def health() -> dict[str, str]:
         "status": "UP",
         "service": "catalog-service",
         "version": SERVICE_VERSION,
+        "imageTag": SERVICE_IMAGE_TAG,
     }
 
 

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.main import SERVICE_VERSION, app
+from app.main import SERVICE_IMAGE_TAG, SERVICE_VERSION, app
 
 
 client = TestClient(app)
@@ -47,4 +47,5 @@ def test_health() -> None:
         "status": "UP",
         "service": "catalog-service",
         "version": SERVICE_VERSION,
+        "imageTag": SERVICE_IMAGE_TAG,
     }
